@@ -1,0 +1,81 @@
+name: unit-tests
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+
+concurrency:
+  group: unit-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  VENV_ROOT: .venv
+  PYTHONPATH: ${{ github.workspace }}/pd_django_small
+
+jobs:
+  ci:
+    name: unit-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    services:
+      postgres:
+        image: postgres:latest
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432/tcp
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Load cached Poetry installation
+        id: cached-poetry
+        uses: actions/cache@v3
+        with:
+          path: ~/.local
+          key: poetry-0
+
+      - name: Poetry
+        if: steps.cached-poetry.outputs.cache-hit != 'true'
+        uses: snok/install-poetry@v1.3.3
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+          virtualenvs-path: ${{ env.VENV_ROOT }}
+          installer-parallel: true
+
+      - name: Cache
+        id: cached-poetry-dependencies
+        uses: actions/cache@v3
+        with:
+          path: ${{ env.VENV_ROOT }}
+          key: poetry-${{ hashFiles('**/poetry.lock') }}
+
+      - name: Dependencies
+        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+        run: poetry install --no-interaction --no-root
+
+      - name: Check migrations
+        env:
+          DATABASE_PORT: ${{ job.services.postgres.ports[5432] }}
+        run: |
+          echo "Migrate..."
+          poetry run python manage.py migrate
+          echo "Check migrations..."
+          poetry run python manage.py makemigrations --dry-run --check
+
+      - name: Unit-tests
+        env:
+          DATABASE_PORT: ${{ job.services.postgres.ports[5432] }}
+        run: poetry run pytest

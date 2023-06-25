@@ -1,0 +1,35 @@
+name: post commit check
+
+on:
+  pull_request:
+    branches:
+      - never
+
+jobs:
+  post-commit-check:
+    name: post-commit-check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - uses: actions/cache@v2
+        with:
+          path: ~/.cache/pip
+          key: pip-pre-commit
+
+      - uses: actions/cache@v2
+        with:
+          path: ~/.cache/pre-commit
+          key: repos-pre-commit
+
+      - name: CI dependencies
+        run: pip install pre-commit
+
+      - name: Run
+        run: pre-commit run --all-files
