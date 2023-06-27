@@ -1,6 +1,23 @@
 # pd-django-small
 
-Create new django app 
+#### Prepare env
 
-poetry run python manage.py startapp <app name>
+> pyenv install 3.11
+> 
+> pyenv local 3.11
+> 
+> poetry install
 
+
+#### Docker-compose 
+
+> docker-compose up
+
+#### Create new django app 
+
+> poetry run python manage.py startapp <app name>
+
+
+#### Tests
+
+> poetry run pytest
