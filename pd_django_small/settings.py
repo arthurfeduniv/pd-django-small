@@ -40,6 +40,9 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "pd_django_small.workspaces",
+    "pd_django_small.users",
+    "pd_django_small.organizations",
+    "pd_django_small.subscriptions",
 ]
 
 MIDDLEWARE = [
@@ -128,3 +131,5 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+AUTH_USER_MODEL = "users.User"
