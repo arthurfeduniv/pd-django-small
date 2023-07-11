@@ -1,6 +1,5 @@
 import uuid
 from django.db import models
-from shortuuidfield import ShortUUIDField
 
 
 class Organization(models.Model):
@@ -11,7 +10,6 @@ class Organization(models.Model):
         editable=False,
     )
     name = models.CharField(max_length=255, blank=False)
-    owner = ShortUUIDField(
-        auto=False,
-        verbose_name="user uuid",
+    owner = models.UUIDField(
+        verbose_name="user uuid"
     )

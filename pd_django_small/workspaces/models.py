@@ -1,8 +1,6 @@
 import uuid
 from django.db import models
 
-from shortuuidfield import ShortUUIDField
-
 
 class Workspace(models.Model):
     uuid = models.UUIDField(
@@ -12,13 +10,11 @@ class Workspace(models.Model):
         editable=False,
     )
     name = models.CharField(max_length=82)
-    owner = ShortUUIDField(
-        auto=False,
-        verbose_name="user uuid",
+    owner = models.UUIDField(
+        verbose_name="user uuid"
     )
-    organization = ShortUUIDField(
-        auto=False,
-        verbose_name="organization uuid",
+    organization = models.UUIDField(
+        verbose_name="organization uuid"
     )
     is_removed = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -36,8 +32,7 @@ class Membership(models.Model):
         Workspace,
         on_delete=models.CASCADE,
     )
-    user = ShortUUIDField(
-        auto=False,
+    user = models.UUIDField(
         db_index=True,
         verbose_name="user uuid",
     )
