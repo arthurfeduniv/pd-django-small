@@ -11,6 +11,5 @@ class Organization(models.Model):
     )
     name = models.CharField(max_length=255, blank=False)
     owner = models.UUIDField(
-        unique=True,
-        verbose_name="user uuid",
+        verbose_name="user uuid"
     )

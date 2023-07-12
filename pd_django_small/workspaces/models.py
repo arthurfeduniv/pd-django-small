@@ -11,10 +11,10 @@ class Workspace(models.Model):
     )
     name = models.CharField(max_length=82)
     owner = models.UUIDField(
-        verbose_name="user uuid",
+        verbose_name="user uuid"
     )
     organization = models.UUIDField(
-        verbose_name="organization uuid",
+        verbose_name="organization uuid"
     )
     is_removed = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -33,6 +33,7 @@ class Membership(models.Model):
         on_delete=models.CASCADE,
     )
     user = models.UUIDField(
+        db_index=True,
         verbose_name="user uuid",
     )
     is_active = models.BooleanField(default=True)
