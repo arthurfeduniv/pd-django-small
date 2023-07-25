@@ -1,5 +1,5 @@
 import pytest
-from django.db.models import Case, When, Value, IntegerField, Sum, F, DecimalField
+from django.db.models import Case, When, Value, IntegerField, Sum, F, DecimalField, Q
 from django.db.models.functions import Least
 
 from pd_django_small.subscriptions.models import SubscriptionState, Subscription
@@ -42,7 +42,14 @@ def test_subscription_orders(organization_factory, user_factory, subscription_fa
     )
 
     # Act
-    qs = None
+    qs = Subscription.objects.order_by(
+        Case(
+            When(state=SubscriptionState.CANCELLED.value, then=1),
+            When(state=SubscriptionState.EXPIRED.value, then=2),
+            When(state=SubscriptionState.ACTIVE.value, then=3),
+        ),
+        "-price"
+    )
 
     # Assert
     for expected_subscription, subscription in zip(
@@ -103,8 +110,15 @@ def test_total_subscriptions_price_for_abc_com(
         price=12,
     )
 
+    """
+    Calculate total active subscriptions price per organization owner domain abc.com.""
+    """
+    domain = "@ABC.com"
     # Act
-    qs = None
+    qs = Subscription.objects.filter(
+        state=SubscriptionState.ACTIVE.value,
+        organization__owner__in=User.objects.filter(email__iendswith=domain).values_list("uuid", flat=True)
+    ).aggregate(Sum("price"))
 
     # Assert
     assert qs["price__sum"] == 120.00
@@ -158,8 +172,22 @@ def test_subscriptions_discount(
         price=12,
     )
 
+    """
+    Calculate subscription discount on database level.
+    discount = price - quantity * 10
+    if discount > 50 => discount=50 
+    """
     # Act
-    qs = None
+    qs = Subscription.objects.annotate(
+        pre_discount=(
+                F("price") - (F("quantity") * 10)
+        ),
+        discount=Case(
+            When(Q(pre_discount__gte=50), then=Value(50)),
+            default=F("pre_discount"),
+            output_field=DecimalField(),
+        )
+    )
 
     # Assert
     assert qs[0].uuid == subscription1.uuid
