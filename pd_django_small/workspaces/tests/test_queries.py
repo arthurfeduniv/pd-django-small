@@ -2,7 +2,7 @@ import pytest
 
 from pd_django_small.workspaces.models import Workspace
 from pd_django_small.organizations.models import Organization
-from django.db.models import OuterRef, Window
+from django.db.models import F, Subquery, OuterRef, Window
 from django.db.models.functions import Lag, Lead
 
 
@@ -24,7 +24,11 @@ def test_workspaces_annotate(organization_factory, workspace_factory, user_facto
     workspace_factory.create(owner=user2.uuid, organization=organization2.uuid)
 
     # Act
-    qs = None
+    qs = Workspace.objects.filter(
+        owner=Organization.objects.filter(
+                owner=OuterRef("owner")
+            ).values("owner")[:1]
+    )
 
     # Assert
     for workspace, owner in zip(qs, [owner1, owner2]):
@@ -61,7 +65,16 @@ def test_workspaces_next_prev_uuid(
     )
 
     # Act
-    qs = None
+    qs = Workspace.objects.annotate(
+        prev_workspace_uuid=Window(
+            expression=Lag("uuid", offset=1, default=None),
+            order_by=F("created_at").asc()
+        ),
+        next_workspace_uuid=Window(
+            expression=Lead("uuid", offset=1, default=None),
+            order_by=F("created_at").asc()
+        ),
+    )
 
     # Assert
     assert qs[0].uuid == workspace1.uuid

@@ -3,6 +3,8 @@ import random
 
 from pd_django_small.users.models import User, AccountType
 
+from django.db.models import F, Q
+
 
 @pytest.mark.django_db
 def test_user_corrupted_information(user_factory):
@@ -34,8 +36,16 @@ def test_user_corrupted_information(user_factory):
         account_type=AccountType.BUSINESS.value,
     )
 
+    """
+    Some users data is corrupted, select all users where user last_name==email or first_name=email (case-insensitive),
+    with 'BUSINESS' account type ordered by created_at desc.
+    """
     # Act
-    qs = None
+    qs = User.objects.filter(
+        account_type=AccountType.BUSINESS.value
+    ).filter(
+        Q(last_name__iexact=F("email")) | Q(first_name__iexact=F("email"))
+    ).order_by("-created_at")
 
     # Assert
     for expected_user, user in zip(qs, [user3, user2, user1]):
@@ -56,6 +66,32 @@ def test_users_bulk_create_or_update(faker, user_factory):
         user_factory.create(email=email)
 
     # Act
+    users_to_create = []
+    users_to_update = []
+    for email in emails:
+        user = User.objects.filter(email=email).first()
+        if user:
+            user.is_active = True
+            user.is_removed = False
+            users_to_update.append(user)
+            continue
+
+        user = User(
+            email=email,
+            username=email,
+            is_active=False,
+            is_removed=False,
+        )
+        users_to_create.append(user)
+
+    created_users_objs = User.objects.bulk_create(users_to_create)
+    updated_users_count = User.objects.bulk_update(
+        users_to_update, ["is_active", "is_removed"]
+    )
+
+    # Assert
+    assert len(created_users_objs) == 225
+    assert updated_users_count == 25
 
 
 @pytest.mark.django_db
@@ -78,6 +114,13 @@ def test_user_update_or_create(user_factory):
     )
 
     # Act
+    user, created = User.objects.update_or_create(
+        email="admin@example.com",
+        defaults={
+            "is_active": True,
+            "is_removed": False,
+        }
+    )
 
     # Assert
     assert created is False

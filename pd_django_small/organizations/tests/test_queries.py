@@ -1,7 +1,19 @@
 import pytest
 
+from pd_django_small.organizations.models import Organization
 from pd_django_small.subscriptions.models import SubscriptionState
 
+from django.contrib.postgres.aggregates import ArrayAgg
+
+from pd_django_small.workspaces.models import Workspace
+
+from django.db.models import (
+    F,
+    Func,
+    IntegerField,
+    OuterRef,
+    Subquery,
+)
 
 @pytest.mark.django_db
 def test_organizations_annotate(organization_factory, workspace_factory, user_factory):
@@ -30,7 +42,22 @@ def test_organizations_annotate(organization_factory, workspace_factory, user_fa
     )
 
     # Act
-    qs = None
+    qs = Organization.objects.annotate(
+        workspaces=Subquery(
+            Workspace.objects.filter(
+                organization=OuterRef("uuid"), is_removed=False
+            ).values("organization")
+            .annotate(uuids=ArrayAgg("uuid"))
+            .values("uuids")
+        ),
+        workspaces_count=Subquery(
+            Workspace.objects.filter(
+                organization=OuterRef("uuid")
+            ).annotate(
+                count=Func(F("uuid"), function="Count")
+            ).values("count")
+        )
+    )
 
     # Assert
     for organization, (workspaces_count, workspaces) in zip(
@@ -90,8 +117,26 @@ def test_organizations_subscription(
         organization=organization5, state=SubscriptionState.ACTIVE.value, price=20
     )
 
+    """
+    Select all organizations, where number of workspaces is more than 2
+    and subscription state is active and subscription price in range (50, 100).
+    """
     # Act
-    qs = None
+    qs = Organization.objects.filter(
+        subscription__state=SubscriptionState.ACTIVE.value,
+        subscription__price__range=(50, 100),
+    ).annotate(
+        workspaces_count=Subquery(
+            Workspace.objects.filter(
+                organization=OuterRef("uuid")
+            ).annotate(
+                ws_count=Func(F("uuid"), function="Count")
+            ).values("ws_count"),
+            output_field=IntegerField(),
+        )
+    ).filter(
+        workspaces_count__gt=2
+    )
 
     # Assert
     for expected_organization, organization in zip(qs, [organization1]):
